@@ -32,7 +32,7 @@ body {
 
 .layout {
   display: grid;
-  grid-template-columns: 260px 1fr 240px;
+  grid-template-columns: 260px 1fr 290px;
   gap: 16px;
   align-items: start;
   padding: 16px;
@@ -281,37 +281,55 @@ body {
 .liquor-list {
   list-style: none;
   padding: 0;
-  margin: 12px 0 8px;
+  margin: 14px 0 10px;
 }
 .liquor-list li {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 9px 0;
+  display: grid;
+  grid-template-columns: 1.5em 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 3px;
+  padding: 11px 0;
   border-bottom: 1px solid var(--border);
 }
 .liquor-list li:last-child { border-bottom: none; }
-.liquor-icon { width: 1.4em; text-align: center; flex-shrink: 0; }
-.liquor-name { flex: 1; color: var(--muted); font-size: 0.85rem; }
-.liquor-val { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
-.liquor-val small { display: block; font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+.liquor-icon { text-align: center; }
+.liquor-name { font-size: 0.92rem; }
+.liquor-val {
+  font-weight: 700;
+  font-size: 1.05rem;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.liquor-sub {
+  grid-column: 2 / -1;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
 
 .flavor-breakdown {
-  margin: 2px 0 0 1.4em;
+  grid-column: 2 / -1;
+  margin: 4px 0 0;
   padding: 0;
   list-style: none;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 .flavor-breakdown li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   border: none;
-  padding: 2px 0;
-  gap: 6px;
+  padding: 0;
 }
 .flavor-dot {
   width: 12px; height: 12px; border-radius: 50%;
   border: 1px solid var(--border); flex-shrink: 0;
-  align-self: center;
 }
 
 #liquorNote.warn { color: #ff7676; }

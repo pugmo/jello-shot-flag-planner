@@ -1,10 +1,10 @@
-# 🎆 Jell-O Shot Flag Planner
+# 🎆 Jelly Shot Layout Planner
 
-A little browser tool for planning a **Jell-O shot flag** — paint a grid where each
+A little browser tool for planning a **jelly shot layout** — paint a grid where each
 cell is one shot, auto-generate a US flag layout, and get a per-color prep list so
 you know exactly how many red / white / blue shots to make.
 
-Built for making **250 Jell-O shots into a flag for the 4th of July**.
+Built for making **250 jelly shots into a flag for the 4th of July**.
 
 ## Features
 
@@ -14,16 +14,16 @@ Built for making **250 Jell-O shots into a flag for the 4th of July**.
 - **Any shape** — rectangle, circle, star, heart, triangle, or diamond. Cells outside the shape turn off and aren't counted.
 - **Full color picker** — add any colors, rename them (e.g. flavor labels), remove custom ones.
 - **Live prep list** — running count of each color and total, with progress toward your target.
-- **Liquor & ingredient calculator** — a strength slider sets how strong each Jell-O shot is vs. a traditional 1.5 oz shot, then totals the boxes, vodka (in oz / cups / bottles), and water you'll need based on what you've painted. Each color is treated as its own flavor/box.
+- **Liquor & ingredient calculator** — a strength slider sets how strong each jelly shot is vs. a traditional 1.5 oz shot, then totals the boxes, vodka (in oz / cups / bottles), and water you'll need based on what you've painted. Each color is treated as its own flavor/box.
 - **Save / load** — stores your layout in the browser.
 - **Export PNG** — save a picture of the plan to print or share.
 
 ### Strength model
 
-Baseline is the [Bread Booze Bacon vodka Jell-O shot recipe](https://breadboozebacon.com/vodka-jello-shots/):
+Baseline is the [Bread Booze Bacon vodka jelly shot recipe](https://breadboozebacon.com/vodka-jello-shots/):
 1 box (3 oz) + 1 cup boiling water + ½ cup cold water + ½ cup vodka → ~10 shots.
 Boiling water is fixed at 1 cup/box; the remaining cup is split between vodka and cold
-water. Standard ≈ 4 Jell-O shots per regular shot; the strong end (~1 cup vodka, no cold
+water. Standard ≈ 4 jelly shots per regular shot; the strong end (~1 cup vodka, no cold
 water) ≈ 2 per regular shot. Past that there's no water left to set, and the tool warns you.
 
 ## Run it

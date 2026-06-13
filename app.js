@@ -1,5 +1,5 @@
-// Jell-O Shot Layout Planner
-// Each active grid cell = one Jell-O shot. Pick a shape, paint any colors,
+// Jelly Shot Layout Planner
+// Each active grid cell = one jelly shot. Pick a shape, paint any colors,
 // and read off how many of each color you need to make.
 //
 // Cell values are stored as hex color strings (or null for empty), so the
@@ -35,8 +35,8 @@ const state = {
   palette: DEFAULT_PALETTE.map((c) => ({ ...c })),
   selected: '#b22234',
   painting: false,
-  strength: 0.25,   // traditional (1.5 oz) shots' worth of liquor per Jell-O shot
-  yieldPerBox: 10,  // jello shots produced by one 3 oz box
+  strength: 0.25,   // traditional (1.5 oz) shots' worth of liquor per jelly shot
+  yieldPerBox: 10,  // jelly shots produced by one 3 oz box
   tallyRows: [],    // [{hex, name, n}] computed by updateTally, used by liquor calc
 };
 
@@ -335,7 +335,7 @@ function updateLiquor() {
   const perRegular = strength > 0 ? 1 / strength : 0;
   const nice = Number.isInteger(perRegular) ? perRegular : perRegular.toFixed(1);
   els.strengthRatio.textContent =
-    `1 Jell-O shot ≈ ${fmtOz(vodkaPerShot)} of spirit — about ${nice} Jell-O shots = 1 regular shot.`;
+    `1 jelly shot ≈ ${fmtOz(vodkaPerShot)} of spirit — about ${nice} jelly shots = 1 regular shot.`;
 
   // boxes per flavor (only colors actually used)
   const used = state.tallyRows.filter((r) => r.n > 0);
@@ -353,9 +353,9 @@ function updateLiquor() {
   const items = [
     {
       icon: '🍮',
-      name: 'Jell-O boxes (3 oz)',
+      name: 'Gelatin boxes',
       val: `${totalBoxes}`,
-      sub: perFlavor.length ? 'one flavor per color →' : 'paint some shots first',
+      sub: perFlavor.length ? '3 oz box each · one flavor per color:' : 'paint some shots first',
       flavors: perFlavor,
     },
     {
@@ -368,7 +368,7 @@ function updateLiquor() {
       icon: '♨️',
       name: 'Boiling water',
       val: fmtCups(totalBoil),
-      sub: `${fmtOz(totalBoil)} (1 cup per box)`,
+      sub: `${fmtOz(totalBoil)} · 1 cup per box`,
     },
     {
       icon: '💧',
@@ -381,7 +381,6 @@ function updateLiquor() {
   els.liquorOutput.innerHTML = '';
   items.forEach((it) => {
     const li = document.createElement('li');
-    li.style.flexWrap = 'wrap';
 
     const icon = document.createElement('span');
     icon.className = 'liquor-icon';
@@ -393,27 +392,28 @@ function updateLiquor() {
 
     const val = document.createElement('span');
     val.className = 'liquor-val';
-    val.innerHTML = `${it.val}<small>${it.sub}</small>`;
+    val.textContent = it.val;
 
-    li.append(icon, name, val);
+    const sub = document.createElement('span');
+    sub.className = 'liquor-sub';
+    sub.textContent = it.sub;
+
+    li.append(icon, name, val, sub);
 
     if (it.flavors && it.flavors.length) {
-      const sub = document.createElement('ul');
-      sub.className = 'flavor-breakdown';
-      sub.style.flexBasis = '100%';
+      const list = document.createElement('ul');
+      list.className = 'flavor-breakdown';
       it.flavors.forEach((f) => {
         const fli = document.createElement('li');
-        fli.style.display = 'flex';
-        fli.style.alignItems = 'center';
         const dot = document.createElement('span');
         dot.className = 'flavor-dot';
         dot.style.background = f.hex;
         const t = document.createElement('span');
         t.textContent = `${f.name}: ${f.boxes} box${f.boxes === 1 ? '' : 'es'} (${f.n} shots)`;
         fli.append(dot, t);
-        sub.appendChild(fli);
+        list.appendChild(fli);
       });
-      li.appendChild(sub);
+      li.appendChild(list);
     }
 
     els.liquorOutput.appendChild(li);
@@ -435,12 +435,16 @@ function fmtOz(oz) {
   return `${round(oz, 1)} fl oz`;
 }
 function fmtCups(oz) {
-  const cups = oz / CUP_OZ;
-  return `${round(cups, 2)} cup${cups === 1 ? '' : 's'}`;
+  const cups = round(oz / CUP_OZ, 1);
+  return `${cups} cup${cups === 1 ? '' : 's'}`;
 }
 function fmtBottles(oz) {
-  if (oz >= HANDLE_OZ) return `${round(oz / HANDLE_OZ, 1)} handle(s) of 1.75 L`;
-  return `${round(oz / BOTTLE_750_OZ, 1)} × 750 mL bottle`;
+  if (oz >= HANDLE_OZ) {
+    const n = round(oz / HANDLE_OZ, 1);
+    return `${n} × 1.75 L handle${n === 1 ? '' : 's'}`;
+  }
+  const n = round(oz / BOTTLE_750_OZ, 1);
+  return `${n} × 750 mL bottle${n === 1 ? '' : 's'}`;
 }
 function round(n, places) {
   const p = 10 ** places;
