@@ -9,13 +9,12 @@ Built for making **250 jelly shots into a flag for the 4th of July**.
 ## Features
 
 - **Paintable grid** — click or drag to paint cells. Right-click erases.
-- **One-click US flag** — generates stripes + a blue star-field canton, scaled to your grid.
-- **Resizable grid** — set columns × rows. The US Flag preset auto-sizes the grid to an accurate ~1.9:1 flag ratio for your target (e.g. **22 × 11 = 242** near a 250-shot target).
+- **Loads a US flag by default** — a clean 13-stripe flag with a solid Bright Blue canton (23 × 13).
+- **Resizable grid** — set columns × rows.
 - **Any shape** — rectangle, circle, star, heart, triangle, or diamond. Cells outside the shape turn off and aren't counted.
-- **Full color picker** — add any colors, rename them (e.g. flavor labels), remove custom ones.
+- **Full color picker** — add any colors, rename them (e.g. flavor labels), remove any swatch.
 - **Live prep list** — running count of each color and total, with progress toward your target.
 - **Liquor & ingredient calculator** — a strength slider sets how strong each jelly shot is vs. a traditional 1.5 oz shot, then totals the boxes, vodka (in oz / cups / bottles), and water you'll need based on what you've painted. Each color is treated as its own flavor/box.
-- **Save / load** — stores your layout in the browser.
 - **Export PNG** — save a picture of the plan to print or share.
 
 ### Strength model

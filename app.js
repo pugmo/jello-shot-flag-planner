@@ -27,7 +27,6 @@ const FLAG_CANTON = '#1f6fe0'; // Bright Blue canton (solid, no stars)
 
 const EMPTY = null;
 const ERASER = 'eraser';
-const STORAGE_KEY = 'jelloFlag.layout.v2';
 
 const SHAPES = [
   { id: 'rectangle', label: 'Rectangle ▭' },
@@ -72,10 +71,6 @@ const els = {
   applyGrid: document.getElementById('applyGrid'),
   addColor: document.getElementById('addColor'),
   colorInput: document.getElementById('colorInput'),
-  genFlag: document.getElementById('genFlag'),
-  clearGrid: document.getElementById('clearGrid'),
-  saveLocal: document.getElementById('saveLocal'),
-  loadLocal: document.getElementById('loadLocal'),
   exportPng: document.getElementById('exportPng'),
   totalCount: document.getElementById('totalCount'),
   targetNote: document.getElementById('targetNote'),
@@ -502,58 +497,7 @@ function generateFlag() {
   buildGrid();
 }
 
-// --- Persistence ---
-function saveLayout() {
-  const payload = {
-    cols: state.cols,
-    rows: state.rows,
-    shape: state.shape,
-    target: state.target,
-    strength: state.strength,
-    yieldPerBox: state.yieldPerBox,
-    palette: state.palette,
-    cells: state.cells,
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  flash(els.saveLocal, 'Saved ✓');
-}
-
-function loadLayout() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return flash(els.loadLocal, 'Nothing saved');
-  try {
-    const d = JSON.parse(raw);
-    state.cols = d.cols;
-    state.rows = d.rows;
-    state.shape = d.shape || 'rectangle';
-    state.target = d.target || 250;
-    state.strength = d.strength ?? 0.25;
-    state.yieldPerBox = d.yieldPerBox ?? 10;
-    state.palette = d.palette?.length ? d.palette : DEFAULT_PALETTE.map((c) => ({ ...c }));
-    state.cells = d.cells;
-    state.selected = state.palette[0]?.hex ?? ERASER;
-    els.cols.value = state.cols;
-    els.rows.value = state.rows;
-    els.target.value = state.target;
-    els.strength.value = state.strength;
-    els.yield.value = state.yieldPerBox;
-    recomputeActive();
-    buildShapeButtons();
-    buildPalette();
-    buildGrid();
-    flash(els.loadLocal, 'Loaded ✓');
-  } catch {
-    flash(els.loadLocal, 'Load failed');
-  }
-}
-
-function flash(btn, msg) {
-  const original = btn.textContent;
-  btn.textContent = msg;
-  setTimeout(() => (btn.textContent = original), 1200);
-}
-
-// --- Resize / clear ---
+// --- Resize ---
 function resizeGrid() {
   const newCols = clamp(parseInt(els.cols.value, 10) || 1, 1, 60);
   const newRows = clamp(parseInt(els.rows.value, 10) || 1, 1, 40);
@@ -572,11 +516,6 @@ function resizeGrid() {
   els.cols.value = newCols;
   els.rows.value = newRows;
   recomputeActive();
-  buildGrid();
-}
-
-function clearGrid() {
-  state.cells = new Array(state.cols * state.rows).fill(EMPTY);
   buildGrid();
 }
 
@@ -659,10 +598,6 @@ els.yield.addEventListener('change', () => {
 });
 els.addColor.addEventListener('click', () => els.colorInput.click());
 els.colorInput.addEventListener('input', (e) => addColor(e.target.value));
-els.genFlag.addEventListener('click', generateFlag);
-els.clearGrid.addEventListener('click', clearGrid);
-els.saveLocal.addEventListener('click', saveLayout);
-els.loadLocal.addEventListener('click', loadLayout);
 els.exportPng.addEventListener('click', exportPng);
 
 // --- Init ---
