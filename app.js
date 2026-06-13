@@ -5,12 +5,25 @@
 // Cell values are stored as hex color strings (or null for empty), so the
 // palette can hold any colors the user adds.
 
+// Common starter colors. Flag red / white / blue use the official flag hexes so
+// the US Flag preset reuses these exact swatches instead of adding duplicates.
 const DEFAULT_PALETTE = [
   { hex: '#b22234', name: 'Red' },
-  { hex: '#ffffff', name: 'White' },
+  { hex: '#ff8c00', name: 'Orange' },
+  { hex: '#ffd400', name: 'Yellow' },
+  { hex: '#2e9e3f', name: 'Green' },
   { hex: '#3c3b6e', name: 'Blue' },
+  { hex: '#1f6fe0', name: 'Bright Blue' },
+  { hex: '#7a3fb0', name: 'Purple' },
+  { hex: '#ff5fa2', name: 'Pink' },
+  { hex: '#ffffff', name: 'White' },
+  { hex: '#1a1a1a', name: 'Black' },
 ];
-const DEFAULT_COUNT = DEFAULT_PALETTE.length;
+
+// Flag preset colors (must exist in the palette when generating a flag).
+const FLAG_RED = '#b22234';
+const FLAG_WHITE = '#ffffff';
+const FLAG_BLUE = '#3c3b6e';
 
 const EMPTY = null;
 const ERASER = 'eraser';
@@ -26,8 +39,8 @@ const SHAPES = [
 ];
 
 const state = {
-  cols: 25,
-  rows: 10,
+  cols: 22,
+  rows: 11,
   shape: 'rectangle',
   target: 250,
   cells: [],          // hex string or null, length cols*rows
@@ -77,8 +90,6 @@ const els = {
 
 const paletteEntry = (hex) =>
   state.palette.find((c) => c.hex.toLowerCase() === String(hex).toLowerCase());
-const isDefault = (hex) =>
-  DEFAULT_PALETTE.some((c) => c.hex.toLowerCase() === hex.toLowerCase());
 
 // --- Shape masks ---
 // Test a cell center, normalized so nx, ny are in (-1, 1). ny grows downward.
@@ -170,11 +181,10 @@ function buildPalette() {
     const sw = document.createElement('button');
     sw.className = 'swatch' + (state.selected === c.hex ? ' selected' : '');
     sw.style.background = c.hex;
-    sw.title = `${c.name} (double-click to rename` +
-      (isDefault(c.hex) ? ')' : ', shift-click to remove)');
+    sw.title = `${c.name} (double-click to rename, shift-click to remove)`;
     sw.setAttribute('aria-label', c.name);
     sw.addEventListener('click', (e) => {
-      if (e.shiftKey && !isDefault(c.hex)) {
+      if (e.shiftKey) {
         removeColor(c.hex);
       } else {
         selectColor(c.hex);
@@ -275,22 +285,24 @@ function updateTally() {
   const note = els.targetNote;
   const target = state.target;
   note.className = '';
-  if (total === target) {
-    note.textContent = `— right on ${target}! 🎯`;
-    note.classList.add('match');
-  } else if (total > target) {
+  if (total > target) {
     note.textContent = `— ${total - target} over ${target}`;
     note.classList.add('over');
-  } else {
+  } else if (total < target) {
     note.textContent = `— ${target - total} to go to ${target}`;
+  } else {
+    note.textContent = '';
   }
 
-  // Show every palette color (even at 0), then any painted color not in palette.
+  // Show only colors actually used, in palette order then any painted extras.
   const rows = [];
   const seen = new Set();
   state.palette.forEach((c) => {
-    rows.push({ hex: c.hex, name: c.name, n: counts.get(c.hex) || 0 });
-    seen.add(c.hex);
+    const n = counts.get(c.hex) || 0;
+    if (n > 0) {
+      rows.push({ hex: c.hex, name: c.name, n });
+      seen.add(c.hex);
+    }
   });
   counts.forEach((n, hex) => {
     if (!seen.has(hex)) rows.push({ hex, name: hex.toUpperCase(), n });
@@ -451,16 +463,49 @@ function round(n, places) {
   return Math.round(n * p) / p;
 }
 
-// --- US flag generator (fills active cells; ignores cells outside the shape) ---
+// Pick grid dimensions whose aspect ratio is closest to a real US flag (1.9:1)
+// while keeping the shot count near the target.
+function bestFlagDims(target) {
+  const RATIO = 1.9;
+  let best = null;
+  for (let rows = 6; rows <= 16; rows++) {
+    const options = [
+      Math.floor(target / rows),
+      Math.round(target / rows),
+      Math.ceil(target / rows),
+    ];
+    for (const cols of options) {
+      if (cols < 1 || cols > 60) continue;
+      const ratio = cols / rows;
+      const product = cols * rows;
+      const cost = Math.abs(ratio - RATIO) + 0.5 * Math.abs(product - target) / target;
+      if (!best || cost < best.cost) best = { cols, rows, cost };
+    }
+  }
+  return best || { cols: 22, rows: 11 };
+}
+
+// --- US flag generator ---
+// Resizes the grid to an accurate flag aspect ratio (~1.9:1) for the current
+// target, resets the shape to a rectangle, and paints stripes + a star canton.
 function generateFlag() {
-  const { cols, rows } = state;
-  const red = '#b22234', white = '#ffffff', blue = '#3c3b6e';
+  const dims = bestFlagDims(state.target);
+  state.cols = dims.cols;
+  state.rows = dims.rows;
+  state.shape = 'rectangle';
+  els.cols.value = state.cols;
+  els.rows.value = state.rows;
+
   // make sure flag colors are in the palette
-  [['#b22234', 'Red'], ['#ffffff', 'White'], ['#3c3b6e', 'Blue']].forEach(
+  [[FLAG_RED, 'Red'], [FLAG_WHITE, 'White'], [FLAG_BLUE, 'Blue']].forEach(
     ([hex, name]) => {
       if (!paletteEntry(hex)) state.palette.push({ hex, name });
     }
   );
+
+  const { cols, rows } = state;
+  state.cells = new Array(cols * rows).fill(EMPTY);
+  recomputeActive();
 
   const cantonH = Math.max(1, Math.round((rows * 7) / 13));
   const cantonW = Math.max(1, Math.round(cols * 0.4));
@@ -468,17 +513,17 @@ function generateFlag() {
   for (let r = 0; r < rows; r++) {
     for (let col = 0; col < cols; col++) {
       const i = r * cols + col;
-      if (!state.active[i]) { state.cells[i] = EMPTY; continue; }
       const inCanton = r < cantonH && col < cantonW;
       if (inCanton) {
         const isStar = r % 2 === 0 && col % 2 === 0;
-        state.cells[i] = isStar && cantonW > 2 && cantonH > 2 ? white : blue;
+        state.cells[i] = isStar && cantonW > 2 && cantonH > 2 ? FLAG_WHITE : FLAG_BLUE;
       } else {
         const stripe = Math.floor((r / rows) * 13);
-        state.cells[i] = stripe % 2 === 0 ? red : white;
+        state.cells[i] = stripe % 2 === 0 ? FLAG_RED : FLAG_WHITE;
       }
     }
   }
+  buildShapeButtons();
   buildPalette();
   buildGrid();
 }
