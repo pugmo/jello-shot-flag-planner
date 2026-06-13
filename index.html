@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jell-O Shot Flag Planner 🎆</title>
+  <meta name="description" content="Plan a Jell-O shot flag layout. Paint a grid, auto-generate a US flag, and get a per-color prep list." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎆</text></svg>" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>🎆 Jell-O Shot Flag Planner</h1>
+    <p class="tagline">Paint your layout, get your shopping list, build the flag.</p>
+  </header>
+
+  <main class="layout">
+    <!-- Controls -->
+    <section class="panel controls" aria-label="Controls">
+      <div class="control-group">
+        <h2>Grid</h2>
+        <div class="grid-dims">
+          <label>Columns
+            <input id="cols" type="number" min="1" max="60" value="25" />
+          </label>
+          <label>Rows
+            <input id="rows" type="number" min="1" max="40" value="10" />
+          </label>
+        </div>
+        <button id="applyGrid" class="btn">Resize grid</button>
+      </div>
+
+      <div class="control-group">
+        <h2>Colors</h2>
+        <div id="palette" class="palette"></div>
+        <p class="hint">Click or drag on the grid to paint. Right-click erases.</p>
+      </div>
+
+      <div class="control-group">
+        <h2>Presets</h2>
+        <button id="genFlag" class="btn btn-primary">🇺🇸 Generate US Flag</button>
+        <button id="clearGrid" class="btn">Clear grid</button>
+      </div>
+
+      <div class="control-group">
+        <h2>Save / Share</h2>
+        <button id="saveLocal" class="btn">Save layout</button>
+        <button id="loadLocal" class="btn">Load saved</button>
+        <button id="exportPng" class="btn">Export PNG</button>
+      </div>
+    </section>
+
+    <!-- Grid -->
+    <section class="panel stage" aria-label="Flag grid">
+      <div id="grid" class="grid" role="grid"></div>
+    </section>
+
+    <!-- Tally -->
+    <aside class="panel tally" aria-label="Counts">
+      <h2>Prep List</h2>
+      <p class="total">Total shots: <strong id="totalCount">0</strong> <span id="targetNote"></span></p>
+      <ul id="tallyList" class="tally-list"></ul>
+      <p class="hint">Each cell = one Jell-O shot. Make this many of each color.</p>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <p>Built for the 4th 🎆 — drag to paint, hit Generate US Flag to start fast.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
