@@ -1,32 +1,53 @@
-// Jell-O Shot Flag Planner
-// Each grid cell = one Jell-O shot. Paint colors, generate a US flag,
+// Jell-O Shot Layout Planner
+// Each active grid cell = one Jell-O shot. Pick a shape, paint any colors,
 // and read off how many of each color you need to make.
+//
+// Cell values are stored as hex color strings (or null for empty), so the
+// palette can hold any colors the user adds.
 
-const COLORS = [
-  { id: 'red',   name: 'Red',   hex: '#b22234' },
-  { id: 'white', name: 'White', hex: '#ffffff' },
-  { id: 'blue',  name: 'Blue',  hex: '#3c3b6e' },
+const DEFAULT_PALETTE = [
+  { hex: '#b22234', name: 'Red' },
+  { hex: '#ffffff', name: 'White' },
+  { hex: '#3c3b6e', name: 'Blue' },
 ];
+const DEFAULT_COUNT = DEFAULT_PALETTE.length;
 
 const EMPTY = null;
-const TARGET = 250; // shots you plan to make
-const STORAGE_KEY = 'jelloFlag.layout.v1';
+const ERASER = 'eraser';
+const STORAGE_KEY = 'jelloFlag.layout.v2';
+
+const SHAPES = [
+  { id: 'rectangle', label: 'Rectangle ▭' },
+  { id: 'circle',    label: 'Circle ⬤' },
+  { id: 'star',      label: 'Star ★' },
+  { id: 'heart',     label: 'Heart ♥' },
+  { id: 'triangle',  label: 'Triangle ▲' },
+  { id: 'diamond',   label: 'Diamond ◆' },
+];
 
 const state = {
   cols: 25,
   rows: 10,
-  cells: [],        // flat array, length cols*rows, each entry = color id or null
-  selected: 'red',  // selected paint id, or 'eraser'
+  shape: 'rectangle',
+  target: 250,
+  cells: [],          // hex string or null, length cols*rows
+  active: [],         // boolean per cell, derived from shape mask
+  palette: DEFAULT_PALETTE.map((c) => ({ ...c })),
+  selected: '#b22234',
   painting: false,
 };
 
 // --- DOM refs ---
 const els = {
   grid: document.getElementById('grid'),
+  shapes: document.getElementById('shapes'),
   palette: document.getElementById('palette'),
   cols: document.getElementById('cols'),
   rows: document.getElementById('rows'),
+  target: document.getElementById('target'),
   applyGrid: document.getElementById('applyGrid'),
+  addColor: document.getElementById('addColor'),
+  colorInput: document.getElementById('colorInput'),
   genFlag: document.getElementById('genFlag'),
   clearGrid: document.getElementById('clearGrid'),
   saveLocal: document.getElementById('saveLocal'),
@@ -37,25 +58,123 @@ const els = {
   tallyList: document.getElementById('tallyList'),
 };
 
-const colorById = (id) => COLORS.find((c) => c.id === id);
+const paletteEntry = (hex) =>
+  state.palette.find((c) => c.hex.toLowerCase() === String(hex).toLowerCase());
+const isDefault = (hex) =>
+  DEFAULT_PALETTE.some((c) => c.hex.toLowerCase() === hex.toLowerCase());
+
+// --- Shape masks ---
+// Test a cell center, normalized so nx, ny are in (-1, 1). ny grows downward.
+function insideShape(shape, col, row, cols, rows) {
+  const nx = ((col + 0.5) / cols) * 2 - 1;
+  const ny = ((row + 0.5) / rows) * 2 - 1;
+  switch (shape) {
+    case 'circle':
+      return nx * nx + ny * ny <= 1.0;
+    case 'diamond':
+      return Math.abs(nx) + Math.abs(ny) <= 1.0;
+    case 'triangle': // apex at top
+      return Math.abs(nx) <= (ny + 1) / 2;
+    case 'star':
+      return pointInPolygon(nx, ny, starPolygon());
+    case 'heart': {
+      const X = nx * 1.25;
+      const Y = -ny * 1.25; // flip so Y points up
+      const t = X * X + Y * Y - 1;
+      return t * t * t - X * X * Y * Y * Y <= 0;
+    }
+    case 'rectangle':
+    default:
+      return true;
+  }
+}
+
+let _starPoly = null;
+function starPolygon() {
+  if (_starPoly) return _starPoly;
+  const outer = 1.0;
+  const inner = 0.4;
+  const pts = [];
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (i * Math.PI) / 5; // 36deg steps
+    pts.push([Math.sin(a) * r, -Math.cos(a) * r]); // i=0 -> top point
+  }
+  _starPoly = pts;
+  return pts;
+}
+
+function pointInPolygon(x, y, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    const intersect =
+      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function recomputeActive() {
+  const { cols, rows, shape } = state;
+  state.active = new Array(cols * rows);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const i = r * cols + c;
+      const on = insideShape(shape, c, r, cols, rows);
+      state.active[i] = on;
+      if (!on) state.cells[i] = EMPTY; // clear anything outside the shape
+    }
+  }
+}
+
+// --- Shape buttons ---
+function buildShapeButtons() {
+  els.shapes.innerHTML = '';
+  SHAPES.forEach((s) => {
+    const b = document.createElement('button');
+    b.className = 'shape-btn' + (state.shape === s.id ? ' selected' : '');
+    b.textContent = s.label;
+    b.addEventListener('click', () => {
+      state.shape = s.id;
+      recomputeActive();
+      buildShapeButtons();
+      buildGrid();
+    });
+    els.shapes.appendChild(b);
+  });
+}
 
 // --- Palette ---
 function buildPalette() {
   els.palette.innerHTML = '';
-  COLORS.forEach((c) => {
+  state.palette.forEach((c) => {
     const sw = document.createElement('button');
-    sw.className = 'swatch' + (state.selected === c.id ? ' selected' : '');
+    sw.className = 'swatch' + (state.selected === c.hex ? ' selected' : '');
     sw.style.background = c.hex;
-    sw.title = c.name;
+    sw.title = `${c.name} (double-click to rename` +
+      (isDefault(c.hex) ? ')' : ', shift-click to remove)');
     sw.setAttribute('aria-label', c.name);
-    sw.addEventListener('click', () => selectColor(c.id));
+    sw.addEventListener('click', (e) => {
+      if (e.shiftKey && !isDefault(c.hex)) {
+        removeColor(c.hex);
+      } else {
+        selectColor(c.hex);
+      }
+    });
+    sw.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      renameColor(c.hex);
+    });
     els.palette.appendChild(sw);
   });
+
   const eraser = document.createElement('button');
-  eraser.className = 'swatch eraser' + (state.selected === 'eraser' ? ' selected' : '');
+  eraser.className = 'swatch eraser' + (state.selected === ERASER ? ' selected' : '');
   eraser.title = 'Eraser';
   eraser.setAttribute('aria-label', 'Eraser');
-  eraser.addEventListener('click', () => selectColor('eraser'));
+  eraser.addEventListener('click', () => selectColor(ERASER));
   els.palette.appendChild(eraser);
 }
 
@@ -64,13 +183,43 @@ function selectColor(id) {
   buildPalette();
 }
 
+function addColor(hex) {
+  if (paletteEntry(hex)) {
+    selectColor(paletteEntry(hex).hex); // already exists, just select it
+    return;
+  }
+  const name = `Color ${state.palette.length + 1}`;
+  state.palette.push({ hex, name });
+  selectColor(hex);
+}
+
+function removeColor(hex) {
+  state.palette = state.palette.filter(
+    (c) => c.hex.toLowerCase() !== hex.toLowerCase()
+  );
+  if (state.selected === hex) state.selected = state.palette[0]?.hex ?? ERASER;
+  buildPalette();
+  updateTally();
+}
+
+function renameColor(hex) {
+  const entry = paletteEntry(hex);
+  if (!entry) return;
+  const name = prompt('Name this color (e.g. flavor):', entry.name);
+  if (name && name.trim()) {
+    entry.name = name.trim();
+    buildPalette();
+    updateTally();
+  }
+}
+
 // --- Grid ---
 function buildGrid() {
   els.grid.style.gridTemplateColumns = `repeat(${state.cols}, 1fr)`;
   els.grid.innerHTML = '';
   for (let i = 0; i < state.cols * state.rows; i++) {
     const cell = document.createElement('div');
-    cell.className = 'cell';
+    cell.className = 'cell' + (state.active[i] ? '' : ' inactive');
     cell.dataset.index = i;
     paintCellEl(cell, state.cells[i]);
     els.grid.appendChild(cell);
@@ -78,14 +227,14 @@ function buildGrid() {
   updateTally();
 }
 
-function paintCellEl(cell, colorId) {
-  const c = colorById(colorId);
-  cell.style.background = c ? c.hex : '';
-  if (!c) cell.style.removeProperty('background');
+function paintCellEl(cell, hex) {
+  if (hex) cell.style.background = hex;
+  else cell.style.removeProperty('background');
 }
 
 function applyPaint(index) {
-  const value = state.selected === 'eraser' ? EMPTY : state.selected;
+  if (!state.active[index]) return; // can't paint outside the shape
+  const value = state.selected === ERASER ? EMPTY : state.selected;
   if (state.cells[index] === value) return;
   state.cells[index] = value;
   const cell = els.grid.children[index];
@@ -95,95 +244,122 @@ function applyPaint(index) {
 
 // --- Tally ---
 function updateTally() {
-  const counts = {};
-  COLORS.forEach((c) => (counts[c.id] = 0));
+  const counts = new Map();
   let total = 0;
-  for (const v of state.cells) {
-    if (v && counts[v] !== undefined) {
-      counts[v]++;
-      total++;
-    }
+  for (let i = 0; i < state.cells.length; i++) {
+    const v = state.cells[i];
+    if (!state.active[i] || !v) continue;
+    counts.set(v, (counts.get(v) || 0) + 1);
+    total++;
   }
 
   els.totalCount.textContent = total;
 
   const note = els.targetNote;
+  const target = state.target;
   note.className = '';
-  if (total === TARGET) {
-    note.textContent = `— right on ${TARGET}! 🎯`;
+  if (total === target) {
+    note.textContent = `— right on ${target}! 🎯`;
     note.classList.add('match');
-  } else if (total > TARGET) {
-    note.textContent = `— ${total - TARGET} over ${TARGET}`;
+  } else if (total > target) {
+    note.textContent = `— ${total - target} over ${target}`;
     note.classList.add('over');
   } else {
-    note.textContent = `— ${TARGET - total} to go to ${TARGET}`;
+    note.textContent = `— ${target - total} to go to ${target}`;
   }
 
+  // Show every palette color (even at 0), then any painted color not in palette.
+  const rows = [];
+  const seen = new Set();
+  state.palette.forEach((c) => {
+    rows.push({ hex: c.hex, name: c.name, n: counts.get(c.hex) || 0 });
+    seen.add(c.hex);
+  });
+  counts.forEach((n, hex) => {
+    if (!seen.has(hex)) rows.push({ hex, name: hex.toUpperCase(), n });
+  });
+
   els.tallyList.innerHTML = '';
-  COLORS.forEach((c) => {
+  rows.forEach((row) => {
     const li = document.createElement('li');
     const chip = document.createElement('span');
     chip.className = 'tally-chip';
-    chip.style.background = c.hex;
+    chip.style.background = row.hex;
     const name = document.createElement('span');
     name.className = 'tally-name';
-    name.textContent = c.name;
+    name.textContent = row.name;
     const num = document.createElement('span');
     num.className = 'tally-num';
-    num.textContent = counts[c.id];
+    num.textContent = row.n;
     li.append(chip, name, num);
     els.tallyList.appendChild(li);
   });
 }
 
-// --- US flag generator ---
-// Stripes: 13 bands, red/white alternating, starting + ending red.
-// Canton (blue field): top-left, ~7/13 of height tall, ~2/5 of width wide,
-// with a scattered white star field.
+// --- US flag generator (fills active cells; ignores cells outside the shape) ---
 function generateFlag() {
   const { cols, rows } = state;
-  const cantonH = Math.max(1, Math.round(rows * 7 / 13));
+  const red = '#b22234', white = '#ffffff', blue = '#3c3b6e';
+  // make sure flag colors are in the palette
+  [['#b22234', 'Red'], ['#ffffff', 'White'], ['#3c3b6e', 'Blue']].forEach(
+    ([hex, name]) => {
+      if (!paletteEntry(hex)) state.palette.push({ hex, name });
+    }
+  );
+
+  const cantonH = Math.max(1, Math.round((rows * 7) / 13));
   const cantonW = Math.max(1, Math.round(cols * 0.4));
 
-  const cells = new Array(cols * rows).fill(EMPTY);
   for (let r = 0; r < rows; r++) {
     for (let col = 0; col < cols; col++) {
       const i = r * cols + col;
+      if (!state.active[i]) { state.cells[i] = EMPTY; continue; }
       const inCanton = r < cantonH && col < cantonW;
       if (inCanton) {
-        // star field: white dot on a staggered lattice, else blue
-        const isStar = (r % 2 === 0) && (col % 2 === 0);
-        cells[i] = isStar && cantonW > 2 && cantonH > 2 ? 'white' : 'blue';
+        const isStar = r % 2 === 0 && col % 2 === 0;
+        state.cells[i] = isStar && cantonW > 2 && cantonH > 2 ? white : blue;
       } else {
         const stripe = Math.floor((r / rows) * 13);
-        cells[i] = stripe % 2 === 0 ? 'red' : 'white';
+        state.cells[i] = stripe % 2 === 0 ? red : white;
       }
     }
   }
-  state.cells = cells;
+  buildPalette();
   buildGrid();
 }
 
 // --- Persistence ---
 function saveLayout() {
-  const payload = { cols: state.cols, rows: state.rows, cells: state.cells };
+  const payload = {
+    cols: state.cols,
+    rows: state.rows,
+    shape: state.shape,
+    target: state.target,
+    palette: state.palette,
+    cells: state.cells,
+  };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   flash(els.saveLocal, 'Saved ✓');
 }
 
 function loadLayout() {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    flash(els.loadLocal, 'Nothing saved');
-    return;
-  }
+  if (!raw) return flash(els.loadLocal, 'Nothing saved');
   try {
-    const data = JSON.parse(raw);
-    state.cols = data.cols;
-    state.rows = data.rows;
-    state.cells = data.cells;
+    const d = JSON.parse(raw);
+    state.cols = d.cols;
+    state.rows = d.rows;
+    state.shape = d.shape || 'rectangle';
+    state.target = d.target || 250;
+    state.palette = d.palette?.length ? d.palette : DEFAULT_PALETTE.map((c) => ({ ...c }));
+    state.cells = d.cells;
+    state.selected = state.palette[0]?.hex ?? ERASER;
     els.cols.value = state.cols;
     els.rows.value = state.rows;
+    els.target.value = state.target;
+    recomputeActive();
+    buildShapeButtons();
+    buildPalette();
     buildGrid();
     flash(els.loadLocal, 'Loaded ✓');
   } catch {
@@ -203,13 +379,11 @@ function resizeGrid() {
   const newRows = clamp(parseInt(els.rows.value, 10) || 1, 1, 40);
   const old = state.cells;
   const oldCols = state.cols;
+  const oldRows = state.rows;
   const next = new Array(newCols * newRows).fill(EMPTY);
-  // preserve overlapping region
   for (let r = 0; r < newRows; r++) {
     for (let c = 0; c < newCols; c++) {
-      if (r < state.rows && c < oldCols) {
-        next[r * newCols + c] = old[r * oldCols + c] ?? EMPTY;
-      }
+      if (r < oldRows && c < oldCols) next[r * newCols + c] = old[r * oldCols + c] ?? EMPTY;
     }
   }
   state.cols = newCols;
@@ -217,6 +391,7 @@ function resizeGrid() {
   state.cells = next;
   els.cols.value = newCols;
   els.rows.value = newRows;
+  recomputeActive();
   buildGrid();
 }
 
@@ -227,7 +402,7 @@ function clearGrid() {
 
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 
-// --- PNG export ---
+// --- PNG export (draws active cells as filled circles) ---
 function exportPng() {
   const cell = 24, gap = 3, pad = 12;
   const w = state.cols * cell + (state.cols - 1) * gap + pad * 2;
@@ -239,18 +414,18 @@ function exportPng() {
   ctx.fillStyle = '#0f1424';
   ctx.fillRect(0, 0, w, h);
   for (let i = 0; i < state.cells.length; i++) {
-    const c = colorById(state.cells[i]);
+    if (!state.active[i]) continue;
     const col = i % state.cols;
     const row = Math.floor(i / state.cols);
     const x = pad + col * (cell + gap);
     const y = pad + row * (cell + gap);
-    ctx.fillStyle = c ? c.hex : '#232a47';
+    ctx.fillStyle = state.cells[i] || '#232a47';
     ctx.beginPath();
     ctx.arc(x + cell / 2, y + cell / 2, cell / 2, 0, Math.PI * 2);
     ctx.fill();
   }
   const link = document.createElement('a');
-  link.download = 'jello-flag.png';
+  link.download = 'jello-layout.png';
   link.href = canvas.toDataURL('image/png');
   link.click();
 }
@@ -267,10 +442,9 @@ els.grid.addEventListener('pointerdown', (e) => {
   if (i < 0) return;
   e.preventDefault();
   state.painting = true;
-  // right-click erases regardless of selected color
   if (e.button === 2) {
     const prev = state.selected;
-    state.selected = 'eraser';
+    state.selected = ERASER;
     applyPaint(i);
     state.selected = prev;
   } else {
@@ -289,6 +463,13 @@ els.grid.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // --- Wire up controls ---
 els.applyGrid.addEventListener('click', resizeGrid);
+els.target.addEventListener('change', () => {
+  state.target = clamp(parseInt(els.target.value, 10) || 1, 1, 2000);
+  els.target.value = state.target;
+  updateTally();
+});
+els.addColor.addEventListener('click', () => els.colorInput.click());
+els.colorInput.addEventListener('input', (e) => addColor(e.target.value));
 els.genFlag.addEventListener('click', generateFlag);
 els.clearGrid.addEventListener('click', clearGrid);
 els.saveLocal.addEventListener('click', saveLayout);
@@ -297,5 +478,7 @@ els.exportPng.addEventListener('click', exportPng);
 
 // --- Init ---
 state.cells = new Array(state.cols * state.rows).fill(EMPTY);
+recomputeActive();
+buildShapeButtons();
 buildPalette();
 generateFlag(); // start with a flag so the page is never blank

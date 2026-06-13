@@ -107,6 +107,48 @@ body {
 }
 .btn-primary:hover { background: #ffdf6b; }
 
+.target-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  color: var(--muted);
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.target-label input {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 1rem;
+}
+
+.shapes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.shape-btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.shape-btn:hover { background: #2c3559; }
+.shape-btn.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  background: #2c3559;
+}
+
+.palette-actions { margin-top: 4px; }
+.palette-actions .btn { margin-bottom: 0; }
+
 .palette {
   display: flex;
   flex-wrap: wrap;
@@ -164,6 +206,14 @@ body {
   transition: transform 0.05s;
 }
 .cell:hover { transform: scale(1.12); z-index: 1; }
+
+.cell.inactive {
+  background: transparent;
+  cursor: default;
+  opacity: 0.12;
+  pointer-events: none;
+}
+.cell.inactive:hover { transform: none; }
 
 .tally .total {
   font-size: 0.95rem;

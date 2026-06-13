@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jell-O Shot Flag Planner 🎆</title>
-  <meta name="description" content="Plan a Jell-O shot flag layout. Paint a grid, auto-generate a US flag, and get a per-color prep list." />
+  <title>Jell-O Shot Layout Planner 🎆</title>
+  <meta name="description" content="Plan a Jell-O shot layout in any shape. Paint a grid, pick any colors, choose a shape, and get a per-color prep list." />
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎆</text></svg>" />
 </head>
 <body>
   <header class="topbar">
-    <h1>🎆 Jell-O Shot Flag Planner</h1>
-    <p class="tagline">Paint your layout, get your shopping list, build the flag.</p>
+    <h1>🎆 Jell-O Shot Layout Planner</h1>
+    <p class="tagline">Pick a shape, paint your colors, get your prep list.</p>
   </header>
 
   <main class="layout">
@@ -27,13 +27,29 @@
             <input id="rows" type="number" min="1" max="40" value="10" />
           </label>
         </div>
+        <label class="target-label">Target shots
+          <input id="target" type="number" min="1" max="2000" value="250" />
+        </label>
         <button id="applyGrid" class="btn">Resize grid</button>
+      </div>
+
+      <div class="control-group">
+        <h2>Shape</h2>
+        <div id="shapes" class="shapes"></div>
+        <p class="hint">Cells outside the shape turn off and aren't counted.</p>
       </div>
 
       <div class="control-group">
         <h2>Colors</h2>
         <div id="palette" class="palette"></div>
-        <p class="hint">Click or drag on the grid to paint. Right-click erases.</p>
+        <div class="palette-actions">
+          <button id="addColor" class="btn">+ Add color</button>
+          <input id="colorInput" type="color" value="#2e8b57" hidden />
+        </div>
+        <p class="hint">
+          Click/drag to paint · right-click erases ·
+          double-click a swatch to rename · shift-click a custom swatch to remove.
+        </p>
       </div>
 
       <div class="control-group">
@@ -51,7 +67,7 @@
     </section>
 
     <!-- Grid -->
-    <section class="panel stage" aria-label="Flag grid">
+    <section class="panel stage" aria-label="Layout grid">
       <div id="grid" class="grid" role="grid"></div>
     </section>
 
@@ -65,7 +81,7 @@
   </main>
 
   <footer class="footer">
-    <p>Built for the 4th 🎆 — drag to paint, hit Generate US Flag to start fast.</p>
+    <p>Built for the 4th 🎆 — pick a shape, paint, and read off your prep list.</p>
   </footer>
 
   <script src="app.js"></script>
