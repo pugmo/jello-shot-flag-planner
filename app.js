@@ -35,7 +35,18 @@ const state = {
   palette: DEFAULT_PALETTE.map((c) => ({ ...c })),
   selected: '#b22234',
   painting: false,
+  strength: 0.25,   // traditional (1.5 oz) shots' worth of liquor per Jell-O shot
+  yieldPerBox: 10,  // jello shots produced by one 3 oz box
+  tallyRows: [],    // [{hex, name, n}] computed by updateTally, used by liquor calc
 };
+
+// Recipe + unit constants (baseline: breadboozebacon.com vodka jello shots)
+const SHOT_OZ = 1.5;       // one traditional shot
+const CUP_OZ = 8;          // fluid ounces per cup
+const BOTTLE_750_OZ = 25.36;
+const HANDLE_OZ = 59.17;   // 1.75 L
+const NONBOIL_CUP_OZ = CUP_OZ; // boiling water is fixed at 1 cup/box; the other cup
+                               // is split between vodka and cold water
 
 // --- DOM refs ---
 const els = {
@@ -56,6 +67,12 @@ const els = {
   totalCount: document.getElementById('totalCount'),
   targetNote: document.getElementById('targetNote'),
   tallyList: document.getElementById('tallyList'),
+  strength: document.getElementById('strength'),
+  strengthReadout: document.getElementById('strengthReadout'),
+  strengthRatio: document.getElementById('strengthRatio'),
+  yield: document.getElementById('yield'),
+  liquorOutput: document.getElementById('liquorOutput'),
+  liquorNote: document.getElementById('liquorNote'),
 };
 
 const paletteEntry = (hex) =>
@@ -294,6 +311,140 @@ function updateTally() {
     li.append(chip, name, num);
     els.tallyList.appendChild(li);
   });
+
+  state.tallyRows = rows;
+  updateLiquor();
+}
+
+// --- Liquor & ingredient calculator ---
+// Each color = a flavor = its own box(es). Everything scales by whole boxes,
+// since you make a full box at a time. Vodka per box comes from the strength
+// slider; boiling water is a fixed 1 cup/box and cold water fills the rest of
+// the second cup. Past ~0.53 strength there's no water left and it won't set.
+function updateLiquor() {
+  const strength = state.strength;     // traditional shots per jello shot
+  const yld = state.yieldPerBox;
+
+  const vodkaPerShot = strength * SHOT_OZ;          // fl oz of spirit in one shot
+  const vodkaPerBox = vodkaPerShot * yld;           // fl oz per box
+  const coldPerBox = NONBOIL_CUP_OZ - vodkaPerBox;  // fl oz; negative = won't set
+  const willSet = coldPerBox >= 0;
+
+  // strength readouts
+  els.strengthReadout.textContent = `${strength.toFixed(2)}× a shot`;
+  const perRegular = strength > 0 ? 1 / strength : 0;
+  const nice = Number.isInteger(perRegular) ? perRegular : perRegular.toFixed(1);
+  els.strengthRatio.textContent =
+    `1 Jell-O shot ≈ ${fmtOz(vodkaPerShot)} of spirit — about ${nice} Jell-O shots = 1 regular shot.`;
+
+  // boxes per flavor (only colors actually used)
+  const used = state.tallyRows.filter((r) => r.n > 0);
+  let totalBoxes = 0;
+  const perFlavor = used.map((r) => {
+    const boxes = Math.ceil(r.n / yld);
+    totalBoxes += boxes;
+    return { ...r, boxes };
+  });
+
+  const totalVodka = totalBoxes * vodkaPerBox;
+  const totalBoil = totalBoxes * CUP_OZ;
+  const totalCold = totalBoxes * Math.max(0, coldPerBox);
+
+  const items = [
+    {
+      icon: '🍮',
+      name: 'Jell-O boxes (3 oz)',
+      val: `${totalBoxes}`,
+      sub: perFlavor.length ? 'one flavor per color →' : 'paint some shots first',
+      flavors: perFlavor,
+    },
+    {
+      icon: '🥃',
+      name: 'Vodka / spirit',
+      val: fmtOz(totalVodka),
+      sub: `${fmtCups(totalVodka)} · ${fmtBottles(totalVodka)}`,
+    },
+    {
+      icon: '♨️',
+      name: 'Boiling water',
+      val: fmtCups(totalBoil),
+      sub: `${fmtOz(totalBoil)} (1 cup per box)`,
+    },
+    {
+      icon: '💧',
+      name: 'Cold water',
+      val: willSet ? fmtCups(totalCold) : '0 cups',
+      sub: willSet ? fmtOz(totalCold) : 'none at this strength',
+    },
+  ];
+
+  els.liquorOutput.innerHTML = '';
+  items.forEach((it) => {
+    const li = document.createElement('li');
+    li.style.flexWrap = 'wrap';
+
+    const icon = document.createElement('span');
+    icon.className = 'liquor-icon';
+    icon.textContent = it.icon;
+
+    const name = document.createElement('span');
+    name.className = 'liquor-name';
+    name.textContent = it.name;
+
+    const val = document.createElement('span');
+    val.className = 'liquor-val';
+    val.innerHTML = `${it.val}<small>${it.sub}</small>`;
+
+    li.append(icon, name, val);
+
+    if (it.flavors && it.flavors.length) {
+      const sub = document.createElement('ul');
+      sub.className = 'flavor-breakdown';
+      sub.style.flexBasis = '100%';
+      it.flavors.forEach((f) => {
+        const fli = document.createElement('li');
+        fli.style.display = 'flex';
+        fli.style.alignItems = 'center';
+        const dot = document.createElement('span');
+        dot.className = 'flavor-dot';
+        dot.style.background = f.hex;
+        const t = document.createElement('span');
+        t.textContent = `${f.name}: ${f.boxes} box${f.boxes === 1 ? '' : 'es'} (${f.n} shots)`;
+        fli.append(dot, t);
+        sub.appendChild(fli);
+      });
+      li.appendChild(sub);
+    }
+
+    els.liquorOutput.appendChild(li);
+  });
+
+  els.liquorNote.className = 'hint';
+  if (!willSet) {
+    els.liquorNote.classList.add('warn');
+    els.liquorNote.textContent =
+      '⚠️ Too much spirit to set! At this strength the vodka exceeds 1 cup per box with no water to firm it up. Lower the strength.';
+  } else {
+    els.liquorNote.textContent =
+      `Per box: ${fmtOz(vodkaPerBox)} spirit + ${fmtOz(coldPerBox)} cold water + 1 cup boiling water → ${yld} shots.`;
+  }
+}
+
+// --- Formatting helpers ---
+function fmtOz(oz) {
+  return `${round(oz, 1)} fl oz`;
+}
+function fmtCups(oz) {
+  const cups = oz / CUP_OZ;
+  return `${round(cups, 2)} cup${cups === 1 ? '' : 's'}`;
+}
+function fmtBottles(oz) {
+  if (oz >= HANDLE_OZ) return `${round(oz / HANDLE_OZ, 1)} handle(s) of 1.75 L`;
+  return `${round(oz / BOTTLE_750_OZ, 1)} × 750 mL bottle`;
+}
+function round(n, places) {
+  const p = 10 ** places;
+  return Math.round(n * p) / p;
 }
 
 // --- US flag generator (fills active cells; ignores cells outside the shape) ---
@@ -335,6 +486,8 @@ function saveLayout() {
     rows: state.rows,
     shape: state.shape,
     target: state.target,
+    strength: state.strength,
+    yieldPerBox: state.yieldPerBox,
     palette: state.palette,
     cells: state.cells,
   };
@@ -351,12 +504,16 @@ function loadLayout() {
     state.rows = d.rows;
     state.shape = d.shape || 'rectangle';
     state.target = d.target || 250;
+    state.strength = d.strength ?? 0.25;
+    state.yieldPerBox = d.yieldPerBox ?? 10;
     state.palette = d.palette?.length ? d.palette : DEFAULT_PALETTE.map((c) => ({ ...c }));
     state.cells = d.cells;
     state.selected = state.palette[0]?.hex ?? ERASER;
     els.cols.value = state.cols;
     els.rows.value = state.rows;
     els.target.value = state.target;
+    els.strength.value = state.strength;
+    els.yield.value = state.yieldPerBox;
     recomputeActive();
     buildShapeButtons();
     buildPalette();
@@ -467,6 +624,15 @@ els.target.addEventListener('change', () => {
   state.target = clamp(parseInt(els.target.value, 10) || 1, 1, 2000);
   els.target.value = state.target;
   updateTally();
+});
+els.strength.addEventListener('input', () => {
+  state.strength = parseFloat(els.strength.value);
+  updateLiquor();
+});
+els.yield.addEventListener('change', () => {
+  state.yieldPerBox = clamp(parseInt(els.yield.value, 10) || 1, 1, 24);
+  els.yield.value = state.yieldPerBox;
+  updateLiquor();
 });
 els.addColor.addEventListener('click', () => els.colorInput.click());
 els.colorInput.addEventListener('input', (e) => addColor(e.target.value));

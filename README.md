@@ -11,9 +11,20 @@ Built for making **250 Jell-O shots into a flag for the 4th of July**.
 - **Paintable grid** — click or drag to paint cells. Right-click erases.
 - **One-click US flag** — generates stripes + a blue star-field canton, scaled to your grid.
 - **Resizable grid** — set columns × rows (default **25 × 10 = 250 shots**).
-- **Live prep list** — running count of each color and total, with progress toward your 250 target.
+- **Any shape** — rectangle, circle, star, heart, triangle, or diamond. Cells outside the shape turn off and aren't counted.
+- **Full color picker** — add any colors, rename them (e.g. flavor labels), remove custom ones.
+- **Live prep list** — running count of each color and total, with progress toward your target.
+- **Liquor & ingredient calculator** — a strength slider sets how strong each Jell-O shot is vs. a traditional 1.5 oz shot, then totals the boxes, vodka (in oz / cups / bottles), and water you'll need based on what you've painted. Each color is treated as its own flavor/box.
 - **Save / load** — stores your layout in the browser.
 - **Export PNG** — save a picture of the plan to print or share.
+
+### Strength model
+
+Baseline is the [Bread Booze Bacon vodka Jell-O shot recipe](https://breadboozebacon.com/vodka-jello-shots/):
+1 box (3 oz) + 1 cup boiling water + ½ cup cold water + ½ cup vodka → ~10 shots.
+Boiling water is fixed at 1 cup/box; the remaining cup is split between vodka and cold
+water. Standard ≈ 4 Jell-O shots per regular shot; the strong end (~1 cup vodka, no cold
+water) ≈ 2 per regular shot. Past that there's no water left to set, and the tool warns you.
 
 ## Run it
 

@@ -215,6 +215,12 @@ body {
 }
 .cell.inactive:hover { transform: none; }
 
+.col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .tally .total {
   font-size: 0.95rem;
   margin: 0 0 12px;
@@ -245,6 +251,70 @@ body {
 }
 .tally-name { flex: 1; }
 .tally-num { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Liquor panel */
+.slider-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.slider-top {
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+#strengthReadout { color: var(--accent); font-weight: 700; }
+.slider-label input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.slider-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.liquor-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 8px;
+}
+.liquor-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.liquor-list li:last-child { border-bottom: none; }
+.liquor-icon { width: 1.4em; text-align: center; flex-shrink: 0; }
+.liquor-name { flex: 1; color: var(--muted); font-size: 0.85rem; }
+.liquor-val { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.liquor-val small { display: block; font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+
+.flavor-breakdown {
+  margin: 2px 0 0 1.4em;
+  padding: 0;
+  list-style: none;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+.flavor-breakdown li {
+  border: none;
+  padding: 2px 0;
+  gap: 6px;
+}
+.flavor-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 1px solid var(--border); flex-shrink: 0;
+  align-self: center;
+}
+
+#liquorNote.warn { color: #ff7676; }
 
 .footer {
   text-align: center;
