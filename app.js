@@ -23,7 +23,7 @@ const DEFAULT_PALETTE = [
 // Flag preset colors (must exist in the palette when generating a flag).
 const FLAG_RED = '#b22234';
 const FLAG_WHITE = '#ffffff';
-const FLAG_BLUE = '#3c3b6e';
+const FLAG_CANTON = '#1f6fe0'; // Bright Blue canton (solid, no stars)
 
 const EMPTY = null;
 const ERASER = 'eraser';
@@ -39,8 +39,8 @@ const SHAPES = [
 ];
 
 const state = {
-  cols: 22,
-  rows: 11,
+  cols: 23,
+  rows: 13,
   shape: 'rectangle',
   target: 250,
   cells: [],          // hex string or null, length cols*rows
@@ -463,41 +463,15 @@ function round(n, places) {
   return Math.round(n * p) / p;
 }
 
-// Pick grid dimensions whose aspect ratio is closest to a real US flag (1.9:1)
-// while keeping the shot count near the target.
-function bestFlagDims(target) {
-  const RATIO = 1.9;
-  let best = null;
-  for (let rows = 6; rows <= 16; rows++) {
-    const options = [
-      Math.floor(target / rows),
-      Math.round(target / rows),
-      Math.ceil(target / rows),
-    ];
-    for (const cols of options) {
-      if (cols < 1 || cols > 60) continue;
-      const ratio = cols / rows;
-      const product = cols * rows;
-      const cost = Math.abs(ratio - RATIO) + 0.5 * Math.abs(product - target) / target;
-      if (!best || cost < best.cost) best = { cols, rows, cost };
-    }
-  }
-  return best || { cols: 22, rows: 11 };
-}
-
 // --- US flag generator ---
-// Resizes the grid to an accurate flag aspect ratio (~1.9:1) for the current
-// target, resets the shape to a rectangle, and paints stripes + a star canton.
+// Paints the flag into the current grid: a solid Bright Blue canton (top-left,
+// ~2/5 wide and 7/13 tall) plus 13 red/white stripes. With 13 rows the stripes
+// land one-per-row for a clean flag; other row counts still degrade gracefully.
 function generateFlag() {
-  const dims = bestFlagDims(state.target);
-  state.cols = dims.cols;
-  state.rows = dims.rows;
   state.shape = 'rectangle';
-  els.cols.value = state.cols;
-  els.rows.value = state.rows;
 
   // make sure flag colors are in the palette
-  [[FLAG_RED, 'Red'], [FLAG_WHITE, 'White'], [FLAG_BLUE, 'Blue']].forEach(
+  [[FLAG_RED, 'Red'], [FLAG_WHITE, 'White'], [FLAG_CANTON, 'Bright Blue']].forEach(
     ([hex, name]) => {
       if (!paletteEntry(hex)) state.palette.push({ hex, name });
     }
@@ -513,16 +487,16 @@ function generateFlag() {
   for (let r = 0; r < rows; r++) {
     for (let col = 0; col < cols; col++) {
       const i = r * cols + col;
-      const inCanton = r < cantonH && col < cantonW;
-      if (inCanton) {
-        const isStar = r % 2 === 0 && col % 2 === 0;
-        state.cells[i] = isStar && cantonW > 2 && cantonH > 2 ? FLAG_WHITE : FLAG_BLUE;
+      if (r < cantonH && col < cantonW) {
+        state.cells[i] = FLAG_CANTON;
       } else {
         const stripe = Math.floor((r / rows) * 13);
         state.cells[i] = stripe % 2 === 0 ? FLAG_RED : FLAG_WHITE;
       }
     }
   }
+  els.cols.value = cols;
+  els.rows.value = rows;
   buildShapeButtons();
   buildPalette();
   buildGrid();
